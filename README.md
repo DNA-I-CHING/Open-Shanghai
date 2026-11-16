@@ -1,1 +1,1 @@
-# Shanghai unpack tool
+# Shanghai Reverse Engineer
