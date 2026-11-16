@@ -67,47 +67,7 @@ cipher[i+1] = ROR3(plain[i])
 
 无密钥、无轮次、无校验，强度接近于零。
 
-## 4. 验证
-
-### 4.1 手工验证（文件头）
-
-```
-cipher: 00 6B 4C 6D AD AE 6E 2D 6C ...
-plain[0] = ROL3(0x6B) = 0x5B = '['
-plain[1] = ROL3(0x4C) = 0x62 = 'b'
-plain[2] = ROL3(0x6D) = 0x6B = 'k'
-plain[3] = ROL3(0xAD) = 0x6D = 'm'
-plain[4] = ROL3(0xAE) = 0x75 = 'u'
-plain[5] = ROL3(0x6E) = 0x73 = 's'
-plain[6] = ROL3(0x2D) = 0x69 = 'i'
-plain[7] = ROL3(0x6C) = 0x63 = 'c'
-        → "[bkmusic]"   与加载函数读取的节名完全一致 ✓
-```
-
-密文中逐记录递增 `0x20` 的两个字节（`06/26/46/66/86` 与 `26/46/66/86`）经 ROL3 还原后正是序号数字 `0/1/2/3/4` 与文件名片段，此前观察到的周期现象完全得到解释。
-
-### 4.2 完整解密结果
-
-```ini
-[bkmusic]
-count=5
-bkname_0=music/game1.mp3
-bkname_1=music/game2.mp3
-bkname_2=music/game3.mp3
-bkname_3=music/game4.mp3
-bkname_4=music/game5.mp3
-bktime_0=40
-bktime_1=40
-bktime_2=40
-bktime_3=40
-bktime_4=40
-```
-
-### 4.3 往返一致性
-
-解密 → 重新加密 → 与原始密文逐字节比对，`218/218` 字节一致。
-
-## 5. 明文直通特性
+## 明文直通特性
 
 `0x402BCF` 处的 `cmp byte [edi],0 / jne 0x402C16` 分支意味着：
 
@@ -117,3 +77,17 @@ bktime_4=40
 
 - 文件必须为 **GBK/ANSI 编码**。UTF-8 BOM（`EF BB BF`）虽仍走明文分支，但会导致节名解析失败；
 - 该逻辑位于引擎层 `CIniFile`，推测适用于本引擎读取的全部加密 INI，而非仅 `gamebkmusic.ini`。
+
+## 解密脚本
+
+完整工具 `shde.py`（需 Python 3）：
+
+```text
+python shde.py de input.ini [output.ini]   解密 → 生成 *_decrypted.ini
+python shde.py en input.ini [output.ini]   加密 → 生成 *_encrypted.ini
+python shde.py show input.ini              仅打印内容，不写文件
+```
+
+- 不带参数运行时弹出文件选择对话框，适合手动操作
+- `de` 游戏原文件（首字节 `0x00`），`en` 编辑后的明文
+- 明文编辑保存请用 ANSI/GBK 编码（推荐直接放回游戏目录，无需 `en` 加密）
