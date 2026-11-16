@@ -1,38 +1,11 @@
 # Shanghai Reverse Engineer
 
-## 1. INI
+## INI
 
 游戏的 `.ini`文件以乱码形式存储，首字节为 `0x00`，后续字节呈 26 字节周期性重复，其中两处字节逐记录递增 `0x20`。本文通过静态逆向还原其加密与加载流程。
 
-## 2. 定位过程
 
-### 2.1 字符串线索
-
-Ghidra 中检索 `gamebkmusic`，命中两处字符串：
-
-| 地址 | 字符串 |
-|---|---|
-| `0x5C1A10` | `ini/gamebkmusic.ini` |
-| `0x5C19F4` | `Load gamebkmusic file error` |
-
-### 2.2 加载函数
-
-唯一交叉引用指向 `FUN_0043F8E0`（源文件为引擎模块 `E:\dev\Enya\EnvSound.cpp`），反编译可见标准 INI 读取流程：
-
-```c
-// FUN_0043F8E0 (简化)
-CIniFile ini;                          // 构造：FUN_004028F0，vtable = 0x58D4B0
-ini.Open("ini/gamebkmusic.ini");       // -> FUN_00402A50
-ini.GetInt ("bkmusic", "count",   &count);
-for (i = 0; i < count; i++) {
-    sprintf(key1, "bkname_%d", i);     // 格式串 0x5C19A4
-    sprintf(key2, "bktime_%d", i);     // 格式串 0x5C1998
-    ini.GetString("bkmusic", key1, ...);
-    ini.GetInt   ("bkmusic", key2, ...);
-}
-```
-
-### 2.3 解密入口
+### 解密入口
 
 `CIniFile::Open`（`FUN_00402A50`）读入整个文件后，调用对象虚表 `+8` 的虚方法处理缓冲区：
 
@@ -60,7 +33,7 @@ if (buf[0] == 0x00) {                    // ← 加密标志
 
 **关键发现：首字节 `0x00` 是加密标志。非 `0x00` 开头的文件被引擎按明文直接解析，加密是可选项。**
 
-## 3. 解密算法
+## 解密算法
 
 `FUN_004027E0` 反编译结果：
 
